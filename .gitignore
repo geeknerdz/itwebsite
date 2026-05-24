@@ -1,0 +1,10 @@
+.env
+site-data/submissions.ndjson
+AGENTS.md
+memory/
+output/
+user_files/
+node_modules/
+package-lock.json
+npm-debug.log*
+.DS_Store

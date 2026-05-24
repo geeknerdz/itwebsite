@@ -1,0 +1,88 @@
+<!doctype html>
+<html lang="en">
+  <head>
+    <meta charset="utf-8" />
+    <meta name="viewport" content="width=device-width, initial-scale=1" />
+    <title>Geeknerdz IT Services</title>
+    <meta name="description" content="Geeknerdz IT Services — practical support for small teams, local hosting, and reliable systems." />
+    <link rel="stylesheet" href="/styles.css" />
+  </head>
+  <body>
+    <header class="hero">
+      <div class="shell">
+        <p class="eyebrow">Geeknerdz IT Services</p>
+        <h1>Reliable local-first IT support for teams that need things to just work.</h1>
+        <p class="lead">
+          We help keep your website, host, and workflow stable with straightforward setup, clear communication,
+          and self-hosted tools.
+        </p>
+        <div class="actions">
+          <a class="button primary" href="#contact">Contact us</a>
+          <a class="button secondary" href="#services">View services</a>
+        </div>
+      </div>
+    </header>
+
+    <main>
+      <section id="services" class="section shell">
+        <h2>What we do</h2>
+        <div class="grid">
+          <article class="card">
+            <h3>Local hosting</h3>
+            <p>Deploy apps on your own server with stable ports, service management, and simple recovery steps.</p>
+          </article>
+          <article class="card">
+            <h3>Cloudflare Tunnel</h3>
+            <p>Expose your local app safely without Nginx using a tunnel pointed at the loopback address.</p>
+          </article>
+          <article class="card">
+            <h3>Operational support</h3>
+            <p>Keep your environment tidy with concise documentation, backups, and practical troubleshooting.</p>
+          </article>
+        </div>
+      </section>
+
+      <section class="section shell split">
+        <div>
+          <h2>Why Geeknerdz</h2>
+          <p>
+            Small teams need dependable support, not noise. We focus on visible results, local storage, and
+            clear handoff notes that make future maintenance easier.
+          </p>
+          <ul class="checks">
+            <li>Self-hosted contact form</li>
+            <li>Local submission storage</li>
+            <li>Node.js 20+ runtime</li>
+            <li>Systemd-ready deployment</li>
+          </ul>
+        </div>
+
+        <aside class="card highlight" id="contact">
+          <h2>Contact us</h2>
+          <form id="contact-form">
+            <label>
+              Name
+              <input type="text" name="name" autocomplete="name" required />
+            </label>
+            <label>
+              Email
+              <input type="email" name="email" autocomplete="email" required />
+            </label>
+            <label>
+              Message
+              <textarea name="message" rows="5" required></textarea>
+            </label>
+            <button class="button primary full" type="submit">Send message</button>
+            <p class="form-note" id="form-note" aria-live="polite"></p>
+          </form>
+        </aside>
+      </section>
+    </main>
+
+    <footer class="footer shell">
+      <p>© <span id="year"></span> Geeknerdz IT Services</p>
+    </footer>
+
+    <script src="/script.js"></script>
+  </body>
+</html>

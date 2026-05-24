@@ -1,0 +1,13 @@
+{
+  "name": "geeknerdz-itwebsite",
+  "version": "1.0.0",
+  "private": true,
+  "description": "Geeknerdz IT website with local contact form storage",
+  "main": "server.js",
+  "scripts": {
+    "start": "node server.js"
+  },
+  "engines": {
+    "node": ">=20"
+  }
+}
