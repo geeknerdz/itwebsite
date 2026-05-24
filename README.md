@@ -118,6 +118,32 @@ site-data/submissions.ndjson
 
 Back up `site-data/submissions.ndjson` if lead retention matters.
 
+## Contact submission backup and restore
+
+Contact form submissions are stored locally at:
+
+```bash
+/var/www/geeknerdz/site-data/submissions.ndjson
+```
+
+This file is intentionally excluded from Git.
+
+Back it up before deployments, major edits, server migration, or restore work.
+
+Example backup command:
+
+```bash
+cp -a /var/www/geeknerdz/site-data/submissions.ndjson "/var/www/geeknerdz/site-data/submissions.ndjson.bak.$(date +%Y%m%d%H%M%S)" 2>/dev/null || true
+```
+
+Example restore command:
+
+```bash
+cp -a /var/www/geeknerdz/site-data/submissions.ndjson.bak.<TIMESTAMP> /var/www/geeknerdz/site-data/submissions.ndjson
+```
+
+After restore, verify ownership and permissions if needed, then restart and re-check the app.
+
 ## Production deployment
 
 Production deployment path:
