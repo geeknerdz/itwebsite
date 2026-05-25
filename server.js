@@ -264,6 +264,48 @@ async function sendContactEmail(submission) {
   });
 }
 
+async function sendAutoReplyEmail(submission) {
+  const transporter = getSmtpTransporter();
+  if (!transporter) {
+    throw new Error('SMTP is not configured');
+  }
+
+  const subject = 'We received your message';
+  const bodyLines = [
+    `Hello ${submission.name},`,
+    '',
+    'Thank you for reaching out to Geeknerdz.',
+    'We have received your message and our team will review it as soon as possible.',
+    'You can expect a response within 24 to 48 hours.',
+    '',
+    'If your request is urgent, please reply to this email with any additional details.',
+    '',
+    'Best regards,',
+    'Administrator',
+    'Geeknerdz',
+  ];
+  const plainText = bodyLines.join('\n');
+  const html = `
+    <p>Hello ${escapeHtml(submission.name)},</p>
+    <p>Thank you for reaching out to Geeknerdz.</p>
+    <p>We have received your message and our team will review it as soon as possible.<br>
+    You can expect a response within <strong>24 to 48 hours</strong>.</p>
+    <p>If your request is urgent, please reply to this email with any additional details.</p>
+    <p>Best regards,<br>
+    <strong>Administrator</strong><br>
+    Geeknerdz</p>
+  `;
+
+  await transporter.sendMail({
+    from: `Geeknerdz Support <${CONTACT_FROM_EMAIL}>`,
+    to: cleanHeader(submission.email),
+    replyTo: CONTACT_TO_EMAIL,
+    subject,
+    text: plainText,
+    html,
+  });
+}
+
 async function handleContact(req, res) {
   if (req.method !== 'POST') {
     sendJson(res, 405, { ok: false, error: 'Method not allowed' });
@@ -308,6 +350,12 @@ async function handleContact(req, res) {
   try {
     await sendContactEmail(submission);
     submission.deliveryStatus = 'emailed';
+
+    try {
+      await sendAutoReplyEmail(submission);
+    } catch (error) {
+      console.error('Failed to send auto-reply email:', error);
+    }
   } catch (error) {
     submission.deliveryStatus = 'stored-only';
     console.error('Failed to deliver contact email:', error);

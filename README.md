@@ -111,6 +111,8 @@ The contact form endpoint is:
 POST /api/contact
 ```
 
+On successful submission, the site emails the team, stores the lead in SQLite, and sends the visitor a professional auto-reply confirming receipt and a 24 to 48 hour response window.
+
 The server accepts JSON or form-encoded requests. Required fields:
 
 - `name`
