@@ -279,7 +279,7 @@ async function sendAutoReplyEmail(submission) {
     '',
     'If your request is time-sensitive, please reply to this email with any additional details so we can prioritize it appropriately.',
     '',
-    'Best regards,',
+    'Warm regards,',
     'Administrator',
     'Geeknerdz',
   ];
@@ -289,7 +289,7 @@ async function sendAutoReplyEmail(submission) {
     <p>Thank you for contacting Geeknerdz. We have received your message and appreciate the opportunity to assist you.</p>
     <p>A member of our team will review your inquiry and respond within <strong>24 to 48 hours</strong>.</p>
     <p>If your request is time-sensitive, please reply to this email with any additional details so we can prioritize it appropriately.</p>
-    <p>Best regards,<br>
+    <p>Warm regards,<br>
     <strong>Administrator</strong><br>
     Geeknerdz</p>
   `;
