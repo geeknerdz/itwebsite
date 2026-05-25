@@ -2,14 +2,14 @@
 
 ## Overview
 
-Geeknerdz Website is a small Node.js web app that serves the public site and accepts contact form submissions. Contact messages are stored locally as newline-delimited JSON so the site can run without an external database.
+Geeknerdz Website is a small Node.js web app that serves the public site and accepts contact form submissions. Contact messages are emailed to the team and also stored locally in SQLite so the site can run without an external database.
 
 ## Repository contents
 
 Included in Git:
 
 - `package.json` — Node.js package metadata and start script
-- `server.js` — HTTP server, static file handler, health check, and contact endpoint
+- `server.js` — HTTP server, static file handler, health check, and contact endpoint with SMTP delivery
 - `.env.example` — sample environment variables
 - `.gitignore` — ignore rules for local secrets and runtime data
 - `site/` — front-end assets served by the app
@@ -72,7 +72,16 @@ Optional:
 
 ```bash
 SITE_DATA_DIR=site-data
+CONTACT_DB_FILE=contact-submissions.sqlite3
+CONTACT_TO_EMAIL=info@geeknerdz.com
+CONTACT_FROM_EMAIL=info@geeknerdz.com
+SMTP_HOST=mail.geeknerdz.tech
+SMTP_PORT=587
+SMTP_USER=info@geeknerdz.com
+SMTP_PASS=your-smtp-password
 ```
+
+SMTP uses STARTTLS on port 587. Keep credentials in `.env` or your service manager, not in Git.
 
 ## Start command
 
@@ -108,22 +117,24 @@ The server accepts JSON or form-encoded requests. Required fields:
 - `email`
 - `message`
 
+When SMTP variables are present, submissions are emailed to `CONTACT_TO_EMAIL` and also written to the local SQLite database.
+
 ## Local contact form storage
 
-Submitted contact form entries are appended to:
+Submitted contact form entries are stored in:
 
 ```bash
-site-data/submissions.ndjson
+site-data/contact-submissions.sqlite3
 ```
 
-Back up `site-data/submissions.ndjson` if lead retention matters.
+Back up `site-data/contact-submissions.sqlite3` if lead retention matters.
 
 ## Contact submission backup and restore
 
 Contact form submissions are stored locally at:
 
 ```bash
-/var/www/geeknerdz/site-data/submissions.ndjson
+/var/www/geeknerdz/site-data/contact-submissions.sqlite3
 ```
 
 This file is intentionally excluded from Git.
@@ -133,13 +144,13 @@ Back it up before deployments, major edits, server migration, or restore work.
 Example backup command:
 
 ```bash
-cp -a /var/www/geeknerdz/site-data/submissions.ndjson "/var/www/geeknerdz/site-data/submissions.ndjson.bak.$(date +%Y%m%d%H%M%S)" 2>/dev/null || true
+cp -a /var/www/geeknerdz/site-data/contact-submissions.sqlite3 "/var/www/geeknerdz/site-data/contact-submissions.sqlite3.bak.$(date +%Y%m%d%H%M%S)" 2>/dev/null || true
 ```
 
 Example restore command:
 
 ```bash
-cp -a /var/www/geeknerdz/site-data/submissions.ndjson.bak.<TIMESTAMP> /var/www/geeknerdz/site-data/submissions.ndjson
+cp -a /var/www/geeknerdz/site-data/contact-submissions.sqlite3.bak.<TIMESTAMP> /var/www/geeknerdz/site-data/contact-submissions.sqlite3
 ```
 
 After restore, verify ownership and permissions if needed, then restart and re-check the app.

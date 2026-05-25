@@ -1,15 +1,142 @@
 const http = require('http');
 const fs = require('fs');
 const fsp = require('fs/promises');
+const Database = require('better-sqlite3');
+const nodemailer = require('nodemailer');
 const path = require('path');
 const { URL } = require('url');
 
 const ROOT = __dirname;
 const SITE_DIR = path.join(ROOT, 'site');
 const DATA_DIR = path.join(ROOT, process.env.SITE_DATA_DIR || 'site-data');
-const SUBMISSIONS_FILE = path.join(DATA_DIR, 'submissions.ndjson');
+const CONTACT_DB_PATH = path.join(DATA_DIR, process.env.CONTACT_DB_FILE || 'contact-submissions.sqlite3');
+const LEGACY_SUBMISSIONS_FILE = path.join(DATA_DIR, 'submissions.ndjson');
 const HOST = process.env.HOST || '0.0.0.0';
 const PORT = Number.parseInt(process.env.PORT || '3000', 10);
+const CONTACT_TO_EMAIL = process.env.CONTACT_TO_EMAIL || 'info@geeknerdz.com';
+const CONTACT_FROM_EMAIL = process.env.CONTACT_FROM_EMAIL || 'info@geeknerdz.com';
+const SMTP_HOST = process.env.SMTP_HOST || '';
+const SMTP_PORT = Number.parseInt(process.env.SMTP_PORT || '587', 10);
+const SMTP_USER = process.env.SMTP_USER || '';
+const SMTP_PASS = process.env.SMTP_PASS || '';
+
+let smtpTransporter;
+let contactDb;
+
+function cleanHeader(value) {
+  return String(value || '').replace(/[\r\n]+/g, ' ').trim();
+}
+
+function escapeHtml(value) {
+  return String(value)
+    .replace(/&/g, '&amp;')
+    .replace(/</g, '&lt;')
+    .replace(/>/g, '&gt;')
+    .replace(/"/g, '&quot;')
+    .replace(/'/g, '&#39;');
+}
+
+function getSmtpTransporter() {
+  if (smtpTransporter) return smtpTransporter;
+
+  if (!SMTP_HOST || !SMTP_USER || !SMTP_PASS) {
+    return null;
+  }
+
+  smtpTransporter = nodemailer.createTransport({
+    host: SMTP_HOST,
+    port: SMTP_PORT,
+    secure: false,
+    requireTLS: true,
+    auth: {
+      user: SMTP_USER,
+      pass: SMTP_PASS,
+    },
+    tls: {
+      servername: SMTP_HOST,
+      minVersion: 'TLSv1.2',
+    },
+  });
+
+  return smtpTransporter;
+}
+
+function getContactDb() {
+  if (contactDb) return contactDb;
+
+  fs.mkdirSync(DATA_DIR, { recursive: true });
+  contactDb = new Database(CONTACT_DB_PATH);
+  contactDb.pragma('journal_mode = WAL');
+  contactDb.pragma('foreign_keys = ON');
+  contactDb.exec(`
+    CREATE TABLE IF NOT EXISTS contact_submissions (
+      id TEXT PRIMARY KEY,
+      created_at TEXT NOT NULL,
+      name TEXT NOT NULL,
+      email TEXT NOT NULL,
+      message TEXT NOT NULL,
+      user_agent TEXT NOT NULL DEFAULT '',
+      ip TEXT NOT NULL DEFAULT '',
+      delivery_status TEXT NOT NULL DEFAULT 'pending'
+    );
+
+    CREATE INDEX IF NOT EXISTS idx_contact_submissions_created_at
+      ON contact_submissions(created_at DESC);
+  `);
+
+  return contactDb;
+}
+
+function importLegacySubmissions(db) {
+  if (db.prepare('SELECT COUNT(*) AS count FROM contact_submissions').get().count > 0) {
+    return 0;
+  }
+
+  if (!fs.existsSync(LEGACY_SUBMISSIONS_FILE)) return 0;
+
+  const raw = fs.readFileSync(LEGACY_SUBMISSIONS_FILE, 'utf8').trim();
+  if (!raw) return 0;
+
+  const insert = db.prepare(`
+    INSERT OR IGNORE INTO contact_submissions
+      (id, created_at, name, email, message, user_agent, ip, delivery_status)
+    VALUES
+      (@id, @createdAt, @name, @email, @message, @userAgent, @ip, @deliveryStatus)
+  `);
+
+  const insertMany = db.transaction((records) => {
+    let count = 0;
+    for (const record of records) {
+      insert.run(record);
+      count += 1;
+    }
+    return count;
+  });
+
+  const records = raw
+    .split('\n')
+    .map((line) => line.trim())
+    .filter(Boolean)
+    .map((line) => JSON.parse(line))
+    .map((record) => ({
+      ...record,
+      deliveryStatus: record.deliveryStatus || 'stored-only',
+    }));
+
+  return insertMany(records);
+}
+
+function saveSubmissionToDb(submission) {
+  const db = getContactDb();
+  const stmt = db.prepare(`
+    INSERT INTO contact_submissions
+      (id, created_at, name, email, message, user_agent, ip, delivery_status)
+    VALUES
+      (@id, @createdAt, @name, @email, @message, @userAgent, @ip, @deliveryStatus)
+  `);
+
+  stmt.run(submission);
+}
 
 function contentType(filePath) {
   const ext = path.extname(filePath).toLowerCase();
@@ -96,9 +223,45 @@ async function serveStatic(req, res, pathname) {
   }
 }
 
-async function appendSubmission(entry) {
-  const line = JSON.stringify(entry) + '\n';
-  await fsp.appendFile(SUBMISSIONS_FILE, line, 'utf8');
+async function sendContactEmail(submission) {
+  const transporter = getSmtpTransporter();
+  if (!transporter) {
+    throw new Error('SMTP is not configured');
+  }
+
+  const subjectName = cleanHeader(submission.name) || 'Website visitor';
+  const subject = `[Geeknerdz Contact] ${subjectName}`;
+  const plainText = [
+    'New website contact form submission',
+    '',
+    `Name: ${submission.name}`,
+    `Email: ${submission.email}`,
+    '',
+    'Message:',
+    submission.message,
+    '',
+    `Submitted at: ${submission.createdAt}`,
+    `Submission ID: ${submission.id}`,
+  ].join('\n');
+
+  const html = `
+    <h2>New website contact form submission</h2>
+    <p><strong>Name:</strong> ${escapeHtml(submission.name)}</p>
+    <p><strong>Email:</strong> ${escapeHtml(submission.email)}</p>
+    <p><strong>Submitted at:</strong> ${escapeHtml(submission.createdAt)}</p>
+    <p><strong>Submission ID:</strong> ${escapeHtml(submission.id)}</p>
+    <h3>Message</h3>
+    <pre style="white-space:pre-wrap;font-family:inherit">${escapeHtml(submission.message)}</pre>
+  `;
+
+  await transporter.sendMail({
+    from: `Geeknerdz Website <${CONTACT_FROM_EMAIL}>`,
+    to: CONTACT_TO_EMAIL,
+    replyTo: cleanHeader(submission.email),
+    subject,
+    text: plainText,
+    html,
+  });
 }
 
 async function handleContact(req, res) {
@@ -139,19 +302,39 @@ async function handleContact(req, res) {
     message,
     userAgent: req.headers['user-agent'] || '',
     ip: (req.headers['x-forwarded-for'] || req.socket.remoteAddress || '').toString(),
+    deliveryStatus: 'pending',
   };
 
   try {
-    await appendSubmission(submission);
-    sendJson(res, 200, { ok: true, message: 'Thanks for reaching out. We received your message.' });
+    await sendContactEmail(submission);
+    submission.deliveryStatus = 'emailed';
+  } catch (error) {
+    submission.deliveryStatus = 'stored-only';
+    console.error('Failed to deliver contact email:', error);
+  }
+
+  try {
+    saveSubmissionToDb(submission);
   } catch (error) {
     console.error('Failed to store submission:', error);
     sendJson(res, 500, { ok: false, error: 'Could not save submission' });
+    return;
   }
+
+  if (submission.deliveryStatus === 'emailed') {
+    sendJson(res, 200, { ok: true, message: 'Thanks for reaching out. We received your message and emailed it to the team.' });
+    return;
+  }
+
+  sendJson(res, 202, { ok: true, message: 'Thanks for reaching out. We received your message and will review it shortly.' });
 }
 
 async function main() {
   await ensureRuntimeDirs();
+  const imported = importLegacySubmissions(getContactDb());
+  if (imported > 0) {
+    console.log(`Imported ${imported} legacy contact submissions into SQLite.`);
+  }
 
   const server = http.createServer(async (req, res) => {
     try {
