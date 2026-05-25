@@ -270,15 +270,14 @@ async function sendAutoReplyEmail(submission) {
     throw new Error('SMTP is not configured');
   }
 
-  const subject = 'We received your message';
+  const subject = 'We have received your message';
   const bodyLines = [
     `Hello ${submission.name},`,
     '',
-    'Thank you for reaching out to Geeknerdz.',
-    'We have received your message and our team will review it as soon as possible.',
-    'You can expect a response within 24 to 48 hours.',
+    'Thank you for contacting Geeknerdz. We have received your message and appreciate the opportunity to assist you.',
+    'A member of our team will review your inquiry and respond within 24 to 48 hours.',
     '',
-    'If your request is urgent, please reply to this email with any additional details.',
+    'If your request is time-sensitive, please reply to this email with any additional details so we can prioritize it appropriately.',
     '',
     'Best regards,',
     'Administrator',
@@ -287,10 +286,9 @@ async function sendAutoReplyEmail(submission) {
   const plainText = bodyLines.join('\n');
   const html = `
     <p>Hello ${escapeHtml(submission.name)},</p>
-    <p>Thank you for reaching out to Geeknerdz.</p>
-    <p>We have received your message and our team will review it as soon as possible.<br>
-    You can expect a response within <strong>24 to 48 hours</strong>.</p>
-    <p>If your request is urgent, please reply to this email with any additional details.</p>
+    <p>Thank you for contacting Geeknerdz. We have received your message and appreciate the opportunity to assist you.</p>
+    <p>A member of our team will review your inquiry and respond within <strong>24 to 48 hours</strong>.</p>
+    <p>If your request is time-sensitive, please reply to this email with any additional details so we can prioritize it appropriately.</p>
     <p>Best regards,<br>
     <strong>Administrator</strong><br>
     Geeknerdz</p>
